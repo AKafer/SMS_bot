@@ -1,0 +1,10 @@
+version: "2.2"
+
+services:
+  bot:
+    container_name: sms_bot
+    image: akafer/sms_bot
+    restart: on-failure
+    command: ["python3", "sms_bot.py"]
+    volumes:
+      - ./reports:/tmp
