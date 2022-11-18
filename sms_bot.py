@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import requests
 import sys
 import pytz
+import schedule
 
 
 import telegram
@@ -14,18 +15,16 @@ from http import HTTPStatus
 from exceptions import NotStatusOkException, NotTokenException
 
 load_dotenv()
-utc=pytz.UTC
+utc = pytz.UTC
 
 TURN = 'ON'
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
-ENDPOINT = 'https://online.moysklad.ru/api/remap/1.2/report/counterparty'
+ENDPOINT = os.getenv('ENDPOINT')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-
-RETRY_TIME = 600
-
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
 STEP = 100
+PERIOD_DAYS = 5
 
 
 def send_message(bot, message):
@@ -35,7 +34,7 @@ def send_message(bot, message):
     logging.info('Отправлено сообщение в Телеграм')
 
 
-def get_api_answer(current_timestamp, limit, offset):
+def get_api_answer(limit, offset):
     """Направляет запрос к API Мой склад и возращает ответ."""
     try:
         logging.info('Отправляю запрос к API Мой Склад')
@@ -51,6 +50,7 @@ def get_api_answer(current_timestamp, limit, offset):
         logging.error('Сбой при запросе к эндпоинту')
         raise ConnectionError('Сбой при запросе к эндпоинту')
 
+
 def check_response(response):
     """Возвращает содержимое в ответе от API Мой склад."""
     if not isinstance(response, dict):
@@ -64,6 +64,7 @@ def check_response(response):
         logging.error('Содержимое не список')
         raise TypeError('Содержимое не список')
     return rows
+
 
 def parse_info(row):
     """Извлекает данные пользователя из записи в rows"""
@@ -83,6 +84,7 @@ def parse_info(row):
         lastDemandDate = 'НЕТ ПОКУПОК'
     return {name: {'phone': phone, 'lastDemandDate': lastDemandDate}}
 
+
 def parse_date(homework):
     """Извлекает дату обновления работы из ответа ЯндексПракутикум."""
     date_updated = homework.get('date_updated')
@@ -91,19 +93,76 @@ def parse_date(homework):
         raise KeyError('В ответе API нет ключа date_updated')
     return date_updated
 
+
 def check_tokens():
     """Проверяет наличие токенов."""
     flag = all([
+        TOKEN_ADMIN is not None,
         TELEGRAM_TOKEN is not None,
-        TELEGRAM_CHAT_ID is not None
+        TELEGRAM_CHAT_ID is not None,
+        ENDPOINT is not None,
     ])
     return flag
 
 
+def sort_by_date(non_sort_list):
+    return sorted(
+        non_sort_list,
+        key=lambda x: list(x.values())[0]['lastDemandDate']
+    )
+
+
 def main():
     """Основная логика работы бота."""
-    DATE_API_MEMORY = None
-    ERROR_MEMORY = None
+    time_in_moscow = datetime.now(pytz.timezone('Europe/Moscow'))
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    send_message(bot, f'Время работать: {time_in_moscow}')
+    if TURN == 'ON':
+        try:
+            limit = STEP
+            offset = 0
+            final_user_list = []
+            i = 0
+            past_time = datetime.today() - timedelta(days=PERIOD_DAYS)
+            while True:
+                response = get_api_answer(limit, offset)
+                rows = check_response(response)
+                if rows:
+                    for row in rows:
+                        i += 1
+                        result = parse_info(row)
+                        last_date = list(result.values())[0]['lastDemandDate']
+                        if last_date != 'НЕТ ПОКУПОК':
+                            last_date = datetime.strptime(
+                                last_date, '%Y-%m-%d %H:%M:%S.%f')
+                            if (
+                                past_time.replace(tzinfo=utc)
+                                < last_date.replace(tzinfo=utc)
+                                < time_in_moscow.replace(tzinfo=utc)
+                            ):
+                                final_user_list.append(result)
+                    offset += STEP
+                    logging.info(f'Обработано пользователей: {offset}')
+                else:
+                    break
+
+            logging.info('Начинаю сортировку по дате')
+            final_user_list = sort_by_date(final_user_list)
+            logging.info('Сортировка завершена')
+            logging.info('Начинаю запись в файл')
+            with open("RESULT.txt", "w", encoding='utf-8') as file:
+                for line in final_user_list:
+                    file.write(str(line) + '\n')
+            logging.info('Запись в файл завершена')
+        except Exception as error:
+            message = f'Сбой в работе программы: {error}'
+            logging.error(message)
+    else:
+        logging.info('TURN OFF')
+
+
+if __name__ == '__main__':
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
     logging.basicConfig(
         level=logging.INFO,
         format=(
@@ -116,57 +175,22 @@ def main():
         logging.info('Токены впорядке')
     else:
         logging.critical(
-            'Не обнаружен один из ключей PRACTICUM_TOKEN,'
-            'TELEGRAM_TOKEN, TELEGRAM_CHAT_ID'
+            'Не обнаружен один из ключей'
+            'TOKEN_ADMIN'
+            'TELEGRAM_TOKEN'
+            'TELEGRAM_CHAT_ID'
+            'ENDPOINT'
         )
+        send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(
-            'Не обнаружен один из ключей PRACTICUM_TOKEN,'
-            'TELEGRAM_TOKEN, TELEGRAM_CHAT_ID'
+            'Не обнаружен один из ключей'
+            'TOKEN_ADMIN'
+            'TELEGRAM_TOKEN'
+            'TELEGRAM_CHAT_ID'
+            'ENDPOINT'
         )
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    send_message(bot, 'Бот с вами! Начинаем работу.')
-    current_timestamp = int(time.time())
-    if TURN == 'ON':
-        while True:
-            try:
-                limit = STEP
-                offset = 0
-                final_user_list = []
-                i = 0
-                time_in_moscow = datetime.now(pytz.timezone('Europe/Moscow'))
-                past_time = datetime.today() - timedelta(days=5)
-                while True:
-                    response = get_api_answer(current_timestamp, limit, offset)
-                    rows = check_response(response)
-                    if rows:
-                        for row in rows:
-                            i += 1
-                            result = parse_info(row)
-                            last_date = list(result.values())[0]['lastDemandDate']
-                            if last_date != 'НЕТ ПОКУПОК':
-                                last_date = datetime.strptime(last_date , '%Y-%m-%d %H:%M:%S.%f')
-                                if  past_time.replace(tzinfo=utc) < last_date.replace(tzinfo=utc) < time_in_moscow.replace(tzinfo=utc):
-                                    final_user_list.append(result)
-                        offset += STEP
-                        logging.info(f'Обработано пользователей: {offset}')
-                    else:
-                        break
-                logging.info('Начинаю запись в файл')
-                with open("RESULT.txt", "w") as file:
-                    for  line in final_user_list:
-                        file.write(str(line) + '\n')
-                logging.info('Запись в файл завершена')
-            except Exception as error:
-                message = f'Сбой в работе программы: {error}'
-                logging.error(message)
-                if str(error) != str(ERROR_MEMORY):
-                    ERROR_MEMORY = error
-                    send_message(bot, message)
-                current_timestamp = int(time.time())
-            finally:
-                time.sleep(RETRY_TIME)
-    else:
-        logging.info('TURN OFF')
-
-if __name__ == '__main__':
-    main()
+    send_message(bot, 'Бот начинае нести службу')
+    schedule.every().hour.at(":25").do(main)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
