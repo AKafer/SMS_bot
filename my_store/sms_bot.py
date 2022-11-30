@@ -17,8 +17,6 @@ from exceptions import NotStatusOkException, NotTokenException
 load_dotenv()
 utc = pytz.UTC
 
-#'user_id': 49752082 - Алексей Арсеньев
-
 TURN = 'ON'
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
