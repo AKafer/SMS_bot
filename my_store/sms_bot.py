@@ -17,14 +17,30 @@ from exceptions import NotStatusOkException, NotTokenException
 load_dotenv()
 utc = pytz.UTC
 
+#'user_id': 49752082 - Алексей Арсеньев
+
 TURN = 'ON'
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
+DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
+DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
+SMS_TEXT = 'Спасибо Вам за покупку в магазине Антраша'
 STEP = 100
-PERIOD_DAYS = 5
+PERIOD_DAYS = 1
+ERROR_KEY = (
+    'Не обнаружен один из ключей'
+    'TOKEN_ADMIN'
+    'TELEGRAM_TOKEN'
+    'TELEGRAM_CHAT_ID'
+    'ENDPOINT'
+    'DEVINO_LOGIN'
+    'DEVINO_PASSWORD'
+    'DEVINO_SOURCE_ADDRESS'
+)
 
 
 def send_message(bot, message):
@@ -82,7 +98,7 @@ def parse_info(row):
     lastDemandDate = row.get('lastDemandDate')
     if lastDemandDate is None:
         lastDemandDate = 'НЕТ ПОКУПОК'
-    return {name: {'phone': phone, 'lastDemandDate': lastDemandDate}}
+    return {'name': name,  'phone': phone, 'lastDemandDate': lastDemandDate}
 
 
 def parse_date(homework):
@@ -108,8 +124,44 @@ def check_tokens():
 def sort_by_date(non_sort_list):
     return sorted(
         non_sort_list,
-        key=lambda x: list(x.values())[0]['lastDemandDate']
+        key=lambda x: x['lastDemandDate']
     )
+    
+
+def sms_send(final_user_list):
+    for user in final_user_list:
+        phone = user['phone']
+        URL = (
+            f'https://integrationapi.net/rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
+            f'&Password={DEVINO_PASSWORD}'
+            f'&DestinationAddress={phone}'
+            f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
+            f'&Data={SMS_TEXT}'
+        )
+        response = '11111111' #'requests.post(URL).json()'
+        user['sms_id'] = response
+    return final_user_list
+
+
+def sms_report(final_user_list):
+    costs = 0
+    unsuccess_sms = 0
+    for user in final_user_list:
+        sms_id = user['sms_id']
+        URL = (
+            f'https://integrationapi.net/rest/v2/Sms/State?Login={DEVINO_LOGIN}'
+            f'&Password={DEVINO_PASSWORD}'
+            f'&messageID={sms_id}'
+        )
+        response = 'requests.post(URL).json()'
+        if response is dict and  response['StateDescription'] == "Отправлено":
+            if response["Price"]:
+               costs += float(response["Price"])
+        else:
+            unsuccess_sms += 1
+    URL = f'https://integrationapi.net/rest/v2/User/Balance?Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'  
+    balance = requests.get(URL).json()
+    return {'Clients': len(final_user_list), 'Unsuccess': unsuccess_sms, 'Costs': costs, 'Balance': balance}
 
 
 def main():
@@ -131,7 +183,7 @@ def main():
                     for row in rows:
                         i += 1
                         result = parse_info(row)
-                        last_date = list(result.values())[0]['lastDemandDate']
+                        last_date = result['lastDemandDate']
                         if last_date != 'НЕТ ПОКУПОК':
                             last_date = datetime.strptime(
                                 last_date, '%Y-%m-%d %H:%M:%S.%f')
@@ -149,6 +201,15 @@ def main():
             logging.info('Начинаю сортировку по дате')
             final_user_list = sort_by_date(final_user_list)
             logging.info('Сортировка завершена')
+            logging.info('Начинаю рассылку смс')
+            final_user_list = sms_send(final_user_list)
+            print(final_user_list)
+            logging.info('Рассылка закончена')
+            logging.info('Формирование отчета по смс')
+            report = sms_report(final_user_list)
+            print(report)
+            send_message(bot, report)
+            logging.info('Отчет сформирован')
             logging.info('Начинаю запись в файл')
             with open("RESULT.txt", "w", encoding='utf-8') as file:
                 for line in final_user_list:
@@ -174,23 +235,12 @@ if __name__ == '__main__':
     if check_tokens():
         logging.info('Токены впорядке')
     else:
-        logging.critical(
-            'Не обнаружен один из ключей'
-            'TOKEN_ADMIN'
-            'TELEGRAM_TOKEN'
-            'TELEGRAM_CHAT_ID'
-            'ENDPOINT'
-        )
+        logging.critical(ERROR_KEY)
         send_message(bot, 'Бот не запустился. Ошибка')
-        raise NotTokenException(
-            'Не обнаружен один из ключей'
-            'TOKEN_ADMIN'
-            'TELEGRAM_TOKEN'
-            'TELEGRAM_CHAT_ID'
-            'ENDPOINT'
-        )
-    send_message(bot, 'Бот начинае нести службу')
-    schedule.every().hour.at(":25").do(main)
+        raise NotTokenException(ERROR_KEY)
+    send_message(bot, 'Бот начинает нести службу')
+    schedule.every().hour.at(":05").do(main)
+    schedule.every().hour.at(":07").do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
