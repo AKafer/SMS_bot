@@ -26,7 +26,7 @@ DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
 DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
-SMS_TEXT = 'Спасибо Вам за покупку в магазине Антраша'
+SMS_TEXT = 'Оцените вашу покупку в магазине ANTRASHA: https://t.me/AntrashaBot'
 STEP = 100
 PERIOD_DAYS = 1
 ERROR_KEY = (
@@ -136,22 +136,23 @@ def sms_send(final_user_list):
             f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
             f'&Data={SMS_TEXT}'
         )
-        response = '11111111' #'requests.post(URL).json()'
+        response = requests.post(URL).json()
         user['sms_id'] = response
     return final_user_list
 
 
 def sms_report(final_user_list):
+    time.sleep(10)
     costs = 0
     unsuccess_sms = 0
     for user in final_user_list:
-        sms_id = user['sms_id']
+        sms_id = user['sms_id'][-1]
         URL = (
             f'https://integrationapi.net/rest/v2/Sms/State?Login={DEVINO_LOGIN}'
             f'&Password={DEVINO_PASSWORD}'
             f'&messageID={sms_id}'
         )
-        response = 'requests.post(URL).json()'
+        response = requests.post(URL).json()
         if response is dict and  response['StateDescription'] == "Отправлено":
             if response["Price"]:
                costs += float(response["Price"])
@@ -209,7 +210,7 @@ def main():
             send_message(bot, report)
             logging.info('Отчет сформирован')
             logging.info('Начинаю запись в файл')
-            with open("RESULT.txt", "w", encoding='utf-8') as file:
+            with open(f'RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt', "w", encoding='utf-8') as file:
                 for line in final_user_list:
                     file.write(str(line) + '\n')
             logging.info('Запись в файл завершена')
@@ -237,8 +238,8 @@ if __name__ == '__main__':
         send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(ERROR_KEY)
     send_message(bot, 'Бот начинает нести службу')
-    schedule.every().hour.at(":05").do(main)
-    schedule.every().hour.at(":07").do(main)
+    # schedule.every().hour.at(":05").do(main)
+    schedule.every().day.at("17:16").do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
