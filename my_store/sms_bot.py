@@ -1,17 +1,15 @@
+import logging
 import os
+import sys
 import time
 from datetime import datetime, timedelta
-import requests
-import sys
-import pytz
-import schedule
-
-
-import telegram
-import logging
-from dotenv import load_dotenv
 from http import HTTPStatus
 
+import pytz
+import requests
+import schedule
+import telegram
+from dotenv import load_dotenv
 from exceptions import NotStatusOkException, NotTokenException
 
 load_dotenv()
@@ -96,7 +94,7 @@ def parse_info(row):
     lastDemandDate = row.get('lastDemandDate')
     if lastDemandDate is None:
         lastDemandDate = 'НЕТ ПОКУПОК'
-    return {'name': name,  'phone': phone, 'lastDemandDate': lastDemandDate}
+    return {'name': name, 'phone': phone, 'lastDemandDate': lastDemandDate}
 
 
 def parse_date(homework):
@@ -124,7 +122,7 @@ def sort_by_date(non_sort_list):
         non_sort_list,
         key=lambda x: x['lastDemandDate']
     )
-    
+
 
 def sms_send(final_user_list):
     for user in final_user_list:
@@ -142,25 +140,34 @@ def sms_send(final_user_list):
 
 
 def sms_report(final_user_list):
-    time.sleep(10)
+    time.sleep(300)
     costs = 0
     unsuccess_sms = 0
     for user in final_user_list:
         sms_id = user['sms_id'][-1]
         URL = (
-            f'https://integrationapi.net/rest/v2/Sms/State?Login={DEVINO_LOGIN}'
+            f'https://integrationapi.net/rest/v2/'
+            f'Sms/State?Login={DEVINO_LOGIN}'
             f'&Password={DEVINO_PASSWORD}'
             f'&messageID={sms_id}'
         )
         response = requests.post(URL).json()
-        if response is dict and  response['StateDescription'] == "Отправлено":
+        if response['StateDescription'] == "Доставлено":
             if response["Price"]:
-               costs += float(response["Price"])
+                costs += float(response["Price"])
         else:
             unsuccess_sms += 1
-    URL = f'https://integrationapi.net/rest/v2/User/Balance?Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'  
+    URL = (
+        f'https://integrationapi.net/rest/v2/User/Balance?'
+        f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
+    )
     balance = requests.get(URL).json()
-    return {'Clients': len(final_user_list), 'Unsuccess': unsuccess_sms, 'Costs': costs, 'Balance': balance}
+    return {
+        'Clients': len(final_user_list),
+        'Unsuccess': unsuccess_sms,
+        'Costs': costs,
+        'Balance': balance
+    }
 
 
 def main():
@@ -168,38 +175,39 @@ def main():
     time_in_moscow = datetime.now(pytz.timezone('Europe/Moscow'))
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, f'Время работать: {time_in_moscow}')
-    if TURN == 'ON':
-        try:
-            limit = STEP
-            offset = 0
-            final_user_list = []
-            i = 0
-            past_time = datetime.today() - timedelta(days=PERIOD_DAYS)
-            while True:
-                response = get_api_answer(limit, offset)
-                rows = check_response(response)
-                if rows:
-                    for row in rows:
-                        i += 1
-                        result = parse_info(row)
-                        last_date = result['lastDemandDate']
-                        if last_date != 'НЕТ ПОКУПОК':
-                            last_date = datetime.strptime(
-                                last_date, '%Y-%m-%d %H:%M:%S.%f')
-                            if (
-                                past_time.replace(tzinfo=utc)
-                                < last_date.replace(tzinfo=utc)
-                                < time_in_moscow.replace(tzinfo=utc)
-                            ):
-                                final_user_list.append(result)
-                    offset += STEP
-                    logging.info(f'Обработано пользователей: {offset}')
-                else:
-                    break
 
-            logging.info('Начинаю сортировку по дате')
-            final_user_list = sort_by_date(final_user_list)
-            logging.info('Сортировка завершена')
+    try:
+        limit = STEP
+        offset = 0
+        final_user_list = []
+        i = 0
+        past_time = datetime.today() - timedelta(days=PERIOD_DAYS)
+        while True:
+            response = get_api_answer(limit, offset)
+            rows = check_response(response)
+            if rows:
+                for row in rows:
+                    i += 1
+                    result = parse_info(row)
+                    last_date = result['lastDemandDate']
+                    if last_date != 'НЕТ ПОКУПОК':
+                        last_date = datetime.strptime(
+                            last_date, '%Y-%m-%d %H:%M:%S.%f')
+                        if (
+                            past_time.replace(tzinfo=utc)
+                            < last_date.replace(tzinfo=utc)
+                            < time_in_moscow.replace(tzinfo=utc)
+                        ):
+                            final_user_list.append(result)
+                offset += STEP
+                logging.info(f'Обработано пользователей: {offset}')
+            else:
+                break
+
+        logging.info('Начинаю сортировку по дате')
+        final_user_list = sort_by_date(final_user_list)
+        logging.info('Сортировка завершена')
+        if TURN == 'ON':
             logging.info('Начинаю рассылку смс')
             final_user_list = sms_send(final_user_list)
             print(final_user_list)
@@ -209,16 +217,17 @@ def main():
             print(report)
             send_message(bot, report)
             logging.info('Отчет сформирован')
-            logging.info('Начинаю запись в файл')
-            with open(f'RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt', "w", encoding='utf-8') as file:
-                for line in final_user_list:
-                    file.write(str(line) + '\n')
-            logging.info('Запись в файл завершена')
-        except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            logging.error(message)
-    else:
-        logging.info('TURN OFF')
+        logging.info('Начинаю запись в файл')
+        with open(
+            f'RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
+            "w", encoding='utf-8'
+        ) as file:
+            for line in final_user_list:
+                file.write(str(line) + '\n')
+        logging.info('Запись в файл завершена')
+    except Exception as error:
+        message = f'Сбой в работе программы: {error}'
+        logging.error(message)
 
 
 if __name__ == '__main__':
@@ -239,7 +248,7 @@ if __name__ == '__main__':
         raise NotTokenException(ERROR_KEY)
     send_message(bot, 'Бот начинает нести службу')
     # schedule.every().hour.at(":05").do(main)
-    schedule.every().day.at("17:16").do(main)
+    schedule.every().day.at("17:22").do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
