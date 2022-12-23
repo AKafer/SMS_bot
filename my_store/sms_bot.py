@@ -15,7 +15,7 @@ from exceptions import NotStatusOkException, NotTokenException
 load_dotenv()
 utc = pytz.UTC
 
-TURN = 'ON'
+TURN = 'OFF'
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -23,10 +23,10 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
 DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
+SMS_TEXT = os.getenv('SMS_TEXT')
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
-SMS_TEXT = 'Оцените вашу покупку в магазине ANTRASHA: https://t.me/AntrashaBot'
 STEP = 100
-PERIOD_DAYS = 1
+PERIOD_DAYS = 2
 ERROR_KEY = (
     'Не обнаружен один из ключей'
     'TOKEN_ADMIN'
@@ -44,6 +44,14 @@ def send_message(bot, message):
     logging.info('Отправляю сообщение в Телеграм')
     bot.send_message(TELEGRAM_CHAT_ID, message)
     logging.info('Отправлено сообщение в Телеграм')
+
+
+def send_file(bot, file):
+    """Отправляет файл в Телеграм."""
+    logging.info('Отправляю файл в Телеграм')
+    f = open(file, 'rb')
+    bot.send_document(TELEGRAM_CHAT_ID, f)
+    logging.info('Файл отправлен')
 
 
 def get_api_answer(limit, offset):
@@ -125,48 +133,62 @@ def sort_by_date(non_sort_list):
 
 
 def sms_send(final_user_list):
-    for user in final_user_list:
-        phone = user['phone']
-        URL = (
-            f'https://integrationapi.net/rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
-            f'&Password={DEVINO_PASSWORD}'
-            f'&DestinationAddress={phone}'
-            f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
-            f'&Data={SMS_TEXT}'
-        )
-        response = requests.post(URL).json()
-        user['sms_id'] = response
-    return final_user_list
-
-
-def sms_report(final_user_list):
-    time.sleep(300)
-    costs = 0
-    unsuccess_sms = 0
-    for user in final_user_list:
-        sms_id = user['sms_id'][-1]
-        URL = (
-            f'https://integrationapi.net/rest/v2/'
-            f'Sms/State?Login={DEVINO_LOGIN}'
-            f'&Password={DEVINO_PASSWORD}'
-            f'&messageID={sms_id}'
-        )
-        response = requests.post(URL).json()
-        if response['StateDescription'] == "Доставлено":
-            if response["Price"]:
-                costs += float(response["Price"])
-        else:
-            unsuccess_sms += 1
     URL = (
         f'https://integrationapi.net/rest/v2/User/Balance?'
         f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
     )
-    balance = requests.get(URL).json()
+    start_balance = requests.get(URL).json()
+    for user in final_user_list:
+        phone = user['phone']
+        if phone != 'НЕ УКАЗАН':
+            URL = (
+                f'https://integrationapi.net/rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
+                f'&Password={DEVINO_PASSWORD}'
+                f'&DestinationAddress={phone}'
+                f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
+                f'&Data={SMS_TEXT}'
+            )
+            response = requests.post(URL).json()
+            user['sms_id'] = response
+    return final_user_list, start_balance
+
+
+def sms_report(final_user_list, start_balance):
+    time.sleep(120)
+    costs = 0
+    unsuccess_sms = 0
+    for user in final_user_list:
+        phone = user['phone']
+        if phone != 'НЕ УКАЗАН':
+            sms_id = user['sms_id'][-1]
+            URL = (
+                f'https://integrationapi.net/rest/v2/'
+                f'Sms/State?Login={DEVINO_LOGIN}'
+                f'&Password={DEVINO_PASSWORD}'
+                f'&messageID={sms_id}'
+            )
+            response = requests.post(URL).json()
+            if response['StateDescription'] == "Доставлено":
+                if response["Price"]:
+                    costs += float(response["Price"])
+                user['status'] = 'ДОСТАВЛЕНО'
+            else:
+                unsuccess_sms += 1
+                user['status'] = 'НЕ ДОСТАВЛЕНО'
+        else:
+            unsuccess_sms += 1
+            user['status'] = 'НЕ ДОСТАВЛЕНО'
+            
+    URL = (
+        f'https://integrationapi.net/rest/v2/User/Balance?'
+        f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
+    )
+    final_balance = requests.get(URL).json()
     return {
         'Clients': len(final_user_list),
         'Unsuccess': unsuccess_sms,
-        'Costs': costs,
-        'Balance': balance
+        'Costs': int(start_balance) - int(final_balance),
+        'Balance': final_balance
     }
 
 
@@ -208,12 +230,14 @@ def main():
         final_user_list = sort_by_date(final_user_list)
         logging.info('Сортировка завершена')
         if TURN == 'ON':
+            # print('ОТЦЕПИЛИ: ', final_user_list[0])
+            # final_user_list = final_user_list[1:]
             logging.info('Начинаю рассылку смс')
-            final_user_list = sms_send(final_user_list)
+            final_user_list, start_balance = sms_send(final_user_list)
             print(final_user_list)
             logging.info('Рассылка закончена')
             logging.info('Формирование отчета по смс')
-            report = sms_report(final_user_list)
+            report = sms_report(final_user_list, start_balance)
             print(report)
             send_message(bot, report)
             logging.info('Отчет сформирован')
@@ -222,9 +246,12 @@ def main():
             f'RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
             "w", encoding='utf-8'
         ) as file:
+            file_to_send = file
             for line in final_user_list:
                 file.write(str(line) + '\n')
         logging.info('Запись в файл завершена')
+        send_file(bot, file_to_send.name)
+        os.remove(file_to_send.name)
     except Exception as error:
         message = f'Сбой в работе программы: {error}'
         logging.error(message)
@@ -248,7 +275,7 @@ if __name__ == '__main__':
         raise NotTokenException(ERROR_KEY)
     send_message(bot, 'Бот начинает нести службу')
     # schedule.every().hour.at(":05").do(main)
-    schedule.every().day.at("17:22").do(main)
+    schedule.every().day.at("11:31").do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
