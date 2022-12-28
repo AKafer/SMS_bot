@@ -43,23 +43,30 @@ pip install -r requirements.txt
 ### Перейти в папку /my_store/ и создать файл .env со следующим содержимым:
 
 ```
-
+TOKEN_ADMIN ****** # токен для API сайта "Мой склад"
+TELEGRAM_TOKEN_1 ****** # токен телеграм 1-го бота
+TELEGRAM_TOKEN_2 ****** # токен телеграм 2-го бота
+...
+TELEGRAM_CHAT_ID_1 ****** # чат ID владельца
+TELEGRAM_CHAT_ID_2 ****** # чат ID владельца
+...
+ENDPOINT https://online.moysklad.ru/api/***** # эндпойнт приложения "Мой склад"
+DEVINO_LOGIN ****** # логин в лк мобильного оператора
+DEVINO_PASSWORD ****** # пароль в лк мобильного оператора
+DEVINO_SOURCE_ADDRESS ****** # имя отправителя в sms
+SMS_TEXT ****** # текст смс
 ```
-
-#### где PRACTICUM_TOKEN - токен для подключения к эндпойнту Яндекс.Практикума, TELEGRAM_TOKEN - токен управления ботом, TELEGRAM_CHAT_ID - токен для подключения к вашему чату
 
 ### Запустить проект:
 
 ```
-python homework.py
+python sms_bot.py
 ```
 
-## Реализация на бесплатном хостинге
-
-### Проект разворачивался на бесплатном хостинге Heroku.com
+### Проект развернут в Docker контейнере на Яндекс.Облако
 
 ## Стек технологий
 
-### Python 3, requests, dotenv, telegram, logging
+### Python 3, requests, dotenv, telegram, logging, Docker
 
 ## Автор проекта - Сергей Сторожук
