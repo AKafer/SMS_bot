@@ -23,8 +23,8 @@
 ### Клонировать репозиторий и перейти в него в командной строке:
 
 ```
-git clone https://github.com/AKafer/homework_bot.git
-cd homework_bot
+git clone https://github.com/AKafer/my_store_sales.git
+cd my_store_sales
 ```
 
 ### Создать и активировать виртуальное окружение:
@@ -40,12 +40,10 @@ source venv/Scripts/activate
 pip install -r requirements.txt
 ```
 
-### Создать файл .env со следующим содержимым:
+### Перейти в папку /my_store/ и создать файл .env со следующим содержимым:
 
 ```
-PRACTICUM_TOKEN=####
-TELEGRAM_TOKEN=####
-TELEGRAM_CHAT_ID=####
+
 ```
 
 #### где PRACTICUM_TOKEN - токен для подключения к эндпойнту Яндекс.Практикума, TELEGRAM_TOKEN - токен управления ботом, TELEGRAM_CHAT_ID - токен для подключения к вашему чату
