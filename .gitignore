@@ -150,6 +150,7 @@ static/
 posts/static/
 media/
 RESULT.txt
+commands.txt
 
 # докер файл
 Dockerfile
