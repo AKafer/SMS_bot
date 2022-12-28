@@ -64,6 +64,7 @@ def send_file(bot, file):
 
 
 def round_sec(bad_date):
+    """Округляет секунды в переменной типа дата"""
     sample_date = datetime(2022, 1, 1, 12, 0, 0)
     dt = sample_date - bad_date
     td2 = timedelta(seconds=int(dt.total_seconds()))
@@ -143,6 +144,7 @@ def check_tokens():
 
 
 def sort_by_date(non_sort_list):
+    """Сортирует список клиентов по дате последней покупки"""
     return sorted(
         non_sort_list,
         key=lambda x: x['lastDemandDate']
@@ -150,6 +152,7 @@ def sort_by_date(non_sort_list):
 
 
 def sms_send(final_user_list):
+    """Отправляет смс клиентам из списка."""
     URL = (
         f'https://integrationapi.net/rest/v2/User/Balance?'
         f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
@@ -172,6 +175,7 @@ def sms_send(final_user_list):
 
 
 def sms_report(final_user_list, start_balance):
+    """Фоирмирует отчет об отправленных смс."""
     time.sleep(120)
     costs = 0
     unsuccess_sms = 0
@@ -210,6 +214,7 @@ def sms_report(final_user_list, start_balance):
 
 
 def get_period(days, day):
+    """Определяет промежуток в днях между днями рассылки"""
     ind = days.index(day)
     if ind == 0:
         return day + 7 - days[-1]
@@ -218,11 +223,12 @@ def get_period(days, day):
 
 
 def file_remove(file):
+    """Удаляет файл с диска после отправки"""
     try:
         os.remove(file)
     except FileNotFoundError:
         logging.error('Не обнарижен файл для удаления')
-        
+
 
 def main():
     """Основная логика работы бота."""
@@ -267,7 +273,6 @@ def main():
         logging.info('Запись в файл завершена')
         send_file(bot, file_to_send.name)
         file_remove(file_to_send.name)
-        #os.remove(file_to_send.name)
     except Exception as error:
         message = f'Сбой в работе программы: {error}'
         send_message(bot, f'Сбой в работе программы: {error}')
@@ -291,9 +296,7 @@ if __name__ == '__main__':
         send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(ERROR_KEY)
     send_message(bot, 'Бот начинает нести службу')
-    schedule.every().day.at("14:32").do(main)
-    #schedule.every(1).minutes.do(send_message, bot, SMS_TEXT)
-    #main()
+    schedule.every().day.at("14:30").do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
