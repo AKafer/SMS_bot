@@ -151,3 +151,6 @@ posts/static/
 media/
 RESULT.txt
 
+# докер файл
+Dockerfile
+

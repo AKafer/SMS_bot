@@ -15,53 +15,73 @@ from exceptions import NotStatusOkException, NotTokenException
 load_dotenv()
 utc = pytz.UTC
 
-TURN = 'OFF'
+TURN = 'ON'
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TELEGRAM_TOKEN_AKAFER = os.getenv('TELEGRAM_TOKEN_AKAFER')
+TELEGRAM_TOKEN_ANTRASHA = os.getenv('TELEGRAM_TOKEN_ANTRASHA')
+TELEGRAM_TOKEN = TELEGRAM_TOKEN_ANTRASHA
+TELEGRAM_CHAT_ID_MY = os.getenv('TELEGRAM_CHAT_ID_MY')
+TELEGRAM_CHAT_ID_ALEX = os.getenv('TELEGRAM_CHAT_ID_ALEX')
+LIST_OF_CHAT_ID = [TELEGRAM_CHAT_ID_MY]
 DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
 DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
 SMS_TEXT = os.getenv('SMS_TEXT')
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
-STEP = 100
-PERIOD_DAYS = 2
+DAYS_TO_RUN = [1, 2, 3, 4, 5, 6, 7]
 ERROR_KEY = (
     'Не обнаружен один из ключей'
     'TOKEN_ADMIN'
-    'TELEGRAM_TOKEN'
-    'TELEGRAM_CHAT_ID'
+    'TELEGRAM_TOKEN_AKAFER'
+    'TELEGRAM_TOKEN_ANTRASHA'
+    'TELEGRAM_CHAT_ID_MY'
+    'TELEGRAM_CHAT_ID_ALEX'
     'ENDPOINT'
     'DEVINO_LOGIN'
     'DEVINO_PASSWORD'
     'DEVINO_SOURCE_ADDRESS'
+    'SMS_TEXT'
 )
 
 
 def send_message(bot, message):
     """Отправляет сообщение в Телеграм."""
-    logging.info('Отправляю сообщение в Телеграм')
-    bot.send_message(TELEGRAM_CHAT_ID, message)
-    logging.info('Отправлено сообщение в Телеграм')
+    logging.info('Отправляю сообщения в Телеграм')
+    for chat_id in LIST_OF_CHAT_ID:
+        bot.send_message(chat_id, message)
+    logging.info('Отправлено сообщения в Телеграм')
 
 
 def send_file(bot, file):
     """Отправляет файл в Телеграм."""
     logging.info('Отправляю файл в Телеграм')
     f = open(file, 'rb')
-    bot.send_document(TELEGRAM_CHAT_ID, f)
+    for chat_id in LIST_OF_CHAT_ID:
+        bot.send_document(chat_id, f)
+    f.close()
     logging.info('Файл отправлен')
 
 
-def get_api_answer(limit, offset):
+def round_sec(bad_date):
+    sample_date = datetime(2022, 1, 1, 12, 0, 0)
+    dt = sample_date - bad_date
+    td2 = timedelta(seconds=int(dt.total_seconds()))
+    return sample_date - td2
+
+
+def get_api_answer(start_date):
     """Направляет запрос к API Мой склад и возращает ответ."""
+    print(start_date)
+    start_date = round_sec(start_date)
+    print(start_date)
     try:
         logging.info('Отправляю запрос к API Мой Склад')
         response = requests.get(
-            ENDPOINT + f'?limit={limit}&offset={offset}',
+            ENDPOINT + f'/?filter=lastDemandDate>{start_date}',
             headers=HEADERS,
         )
+        print(response)
         if response.status_code != HTTPStatus.OK:
             logging.error('Недоступность эндпоинта')
             raise NotStatusOkException('Недоступность эндпоинта')
@@ -105,22 +125,19 @@ def parse_info(row):
     return {'name': name, 'phone': phone, 'lastDemandDate': lastDemandDate}
 
 
-def parse_date(homework):
-    """Извлекает дату обновления работы из ответа ЯндексПракутикум."""
-    date_updated = homework.get('date_updated')
-    if date_updated is None:
-        logging.error('В ответе API нет ключа date_updated')
-        raise KeyError('В ответе API нет ключа date_updated')
-    return date_updated
-
-
 def check_tokens():
     """Проверяет наличие токенов."""
     flag = all([
         TOKEN_ADMIN is not None,
-        TELEGRAM_TOKEN is not None,
-        TELEGRAM_CHAT_ID is not None,
+        TELEGRAM_TOKEN_AKAFER is not None,
+        TELEGRAM_TOKEN_ANTRASHA is not None,
+        TELEGRAM_CHAT_ID_MY is not None,
+        TELEGRAM_CHAT_ID_ALEX is not None,
         ENDPOINT is not None,
+        DEVINO_LOGIN is not None,
+        DEVINO_PASSWORD is not None,
+        DEVINO_SOURCE_ADDRESS is not None,
+        SMS_TEXT is not None,
     ])
     return flag
 
@@ -142,7 +159,8 @@ def sms_send(final_user_list):
         phone = user['phone']
         if phone != 'НЕ УКАЗАН':
             URL = (
-                f'https://integrationapi.net/rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
+                f'https://integrationapi.net/'
+                f'rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
                 f'&Password={DEVINO_PASSWORD}'
                 f'&DestinationAddress={phone}'
                 f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
@@ -178,7 +196,6 @@ def sms_report(final_user_list, start_balance):
         else:
             unsuccess_sms += 1
             user['status'] = 'НЕ ДОСТАВЛЕНО'
-            
     URL = (
         f'https://integrationapi.net/rest/v2/User/Balance?'
         f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
@@ -192,46 +209,44 @@ def sms_report(final_user_list, start_balance):
     }
 
 
+def get_period(days, day):
+    ind = days.index(day)
+    if ind == 0:
+        return day + 7 - days[-1]
+    else:
+        return day - days[ind - 1]
+
+
+def file_remove(file):
+    try:
+        os.remove(file)
+    except FileNotFoundError:
+        logging.error('Не обнарижен файл для удаления')
+        
+
 def main():
     """Основная логика работы бота."""
     time_in_moscow = datetime.now(pytz.timezone('Europe/Moscow'))
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    curday = datetime.isoweekday(datetime.today())
+    if curday not in DAYS_TO_RUN:
+        send_message(bot, 'Сегодня выходной')
+        return False
     send_message(bot, f'Время работать: {time_in_moscow}')
+    period_to_sms = get_period(DAYS_TO_RUN, curday)
 
     try:
-        limit = STEP
-        offset = 0
         final_user_list = []
-        i = 0
-        past_time = datetime.today() - timedelta(days=PERIOD_DAYS)
-        while True:
-            response = get_api_answer(limit, offset)
-            rows = check_response(response)
-            if rows:
-                for row in rows:
-                    i += 1
-                    result = parse_info(row)
-                    last_date = result['lastDemandDate']
-                    if last_date != 'НЕТ ПОКУПОК':
-                        last_date = datetime.strptime(
-                            last_date, '%Y-%m-%d %H:%M:%S.%f')
-                        if (
-                            past_time.replace(tzinfo=utc)
-                            < last_date.replace(tzinfo=utc)
-                            < time_in_moscow.replace(tzinfo=utc)
-                        ):
-                            final_user_list.append(result)
-                offset += STEP
-                logging.info(f'Обработано пользователей: {offset}')
-            else:
-                break
-
+        start_date = datetime.today() - timedelta(days=period_to_sms)
+        response = get_api_answer(start_date)
+        rows = check_response(response)
+        if rows:
+            for row in rows:
+                final_user_list.append(parse_info(row))
         logging.info('Начинаю сортировку по дате')
         final_user_list = sort_by_date(final_user_list)
         logging.info('Сортировка завершена')
         if TURN == 'ON':
-            # print('ОТЦЕПИЛИ: ', final_user_list[0])
-            # final_user_list = final_user_list[1:]
             logging.info('Начинаю рассылку смс')
             final_user_list, start_balance = sms_send(final_user_list)
             print(final_user_list)
@@ -251,9 +266,11 @@ def main():
                 file.write(str(line) + '\n')
         logging.info('Запись в файл завершена')
         send_file(bot, file_to_send.name)
-        os.remove(file_to_send.name)
+        file_remove(file_to_send.name)
+        #os.remove(file_to_send.name)
     except Exception as error:
         message = f'Сбой в работе программы: {error}'
+        send_message(bot, f'Сбой в работе программы: {error}')
         logging.error(message)
 
 
@@ -274,8 +291,9 @@ if __name__ == '__main__':
         send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(ERROR_KEY)
     send_message(bot, 'Бот начинает нести службу')
-    # schedule.every().hour.at(":05").do(main)
-    schedule.every().day.at("11:31").do(main)
+    schedule.every().day.at("14:32").do(main)
+    #schedule.every(1).minutes.do(send_message, bot, SMS_TEXT)
+    #main()
     while True:
         schedule.run_pending()
         time.sleep(1)
