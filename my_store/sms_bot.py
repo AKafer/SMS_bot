@@ -73,16 +73,13 @@ def round_sec(bad_date):
 
 def get_api_answer(start_date):
     """Направляет запрос к API Мой склад и возращает ответ."""
-    print(start_date)
     start_date = round_sec(start_date)
-    print(start_date)
     try:
         logging.info('Отправляю запрос к API Мой Склад')
         response = requests.get(
             ENDPOINT + f'/?filter=lastDemandDate>{start_date}',
             headers=HEADERS,
         )
-        print(response)
         if response.status_code != HTTPStatus.OK:
             logging.error('Недоступность эндпоинта')
             raise NotStatusOkException('Недоступность эндпоинта')
@@ -255,11 +252,9 @@ def main():
         if TURN == 'ON':
             logging.info('Начинаю рассылку смс')
             final_user_list, start_balance = sms_send(final_user_list)
-            print(final_user_list)
             logging.info('Рассылка закончена')
             logging.info('Формирование отчета по смс')
             report = sms_report(final_user_list, start_balance)
-            print(report)
             send_message(bot, report)
             logging.info('Отчет сформирован')
         logging.info('Начинаю запись в файл')
