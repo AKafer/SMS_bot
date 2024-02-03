@@ -1,0 +1,8 @@
+version: "3.9"
+
+services:
+  bot:
+    container_name: sms_bot
+    restart: always
+    build: .
+    command: ["python3", "sms_bot.py"]

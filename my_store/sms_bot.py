@@ -15,21 +15,23 @@ from exceptions import NotStatusOkException, NotTokenException
 load_dotenv()
 utc = pytz.UTC
 
-TURN = 'ON'
+
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
 TELEGRAM_TOKEN_AKAFER = os.getenv('TELEGRAM_TOKEN_AKAFER')
 TELEGRAM_TOKEN_ANTRASHA = os.getenv('TELEGRAM_TOKEN_ANTRASHA')
-TELEGRAM_TOKEN = TELEGRAM_TOKEN_ANTRASHA
+TELEGRAM_TOKEN = TELEGRAM_TOKEN_AKAFER
 TELEGRAM_CHAT_ID_MY = os.getenv('TELEGRAM_CHAT_ID_MY')
 TELEGRAM_CHAT_ID_ALEX = os.getenv('TELEGRAM_CHAT_ID_ALEX')
-LIST_OF_CHAT_ID = [TELEGRAM_CHAT_ID_MY]
 DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
 DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
 SMS_TEXT = os.getenv('SMS_TEXT')
+
+TURN = 'ON'
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
-DAYS_TO_RUN = [1, 2, 3, 4, 5, 6, 7]
+LIST_OF_CHAT_ID = [TELEGRAM_CHAT_ID_MY]
+DAYS_TO_RUN = [1, 4]
 ERROR_KEY = (
     'Не обнаружен один из ключей'
     'TOKEN_ADMIN'
@@ -56,10 +58,9 @@ def send_message(bot, message):
 def send_file(bot, file):
     """Отправляет файл в Телеграм."""
     logging.info('Отправляю файл в Телеграм')
-    f = open(file, 'rb')
-    for chat_id in LIST_OF_CHAT_ID:
-        bot.send_document(chat_id, f)
-    f.close()
+    with open(file, 'rb') as f:
+        for chat_id in LIST_OF_CHAT_ID:
+            bot.send_document(chat_id, f)
     logging.info('Файл отправлен')
 
 
@@ -223,8 +224,8 @@ def file_remove(file):
     """Удаляет файл с диска после отправки"""
     try:
         os.remove(file)
-    except FileNotFoundError:
-        logging.error('Не обнарижен файл для удаления')
+    except Exception as e:
+        logging.error(f'Какая-то проблема с удалением файла: {e}')
 
 
 def main():
@@ -233,7 +234,7 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     curday = datetime.isoweekday(datetime.today())
     if curday not in DAYS_TO_RUN:
-        send_message(bot, 'Сегодня выходной')
+        send_message(bot, 'Сегодня выходной. Рассылки не будет.')
         return False
     send_message(bot, f'Время работать: {time_in_moscow}')
     period_to_sms = get_period(DAYS_TO_RUN, curday)
@@ -276,6 +277,7 @@ def main():
 
 if __name__ == '__main__':
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    bot.send_message(TELEGRAM_CHAT_ID_MY, 'ПРОВЕРКА')
     logging.basicConfig(
         level=logging.INFO,
         format=(
@@ -290,7 +292,7 @@ if __name__ == '__main__':
         logging.critical(ERROR_KEY)
         send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(ERROR_KEY)
-    send_message(bot, 'Бот начинает нести службу')
+    send_message(bot, f'Бот начинает дежурство.\nДни рассылок: {DAYS_TO_RUN}')
     schedule.every().day.at("14:30").do(main)
     while True:
         schedule.run_pending()
