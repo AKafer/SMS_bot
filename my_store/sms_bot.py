@@ -11,26 +11,33 @@ import schedule
 import telegram
 from dotenv import load_dotenv
 from exceptions import NotStatusOkException, NotTokenException
+from devino_integration import ClassDevinoAPI
+from mts_integration import ClassMtsAPI
 
 load_dotenv()
 utc = pytz.UTC
 
+#  write your sms clint name mts or devino
+SMS_CLIENT = 'mts'
 
 TOKEN_ADMIN = os.getenv('TOKEN_ADMIN')
 ENDPOINT = os.getenv('ENDPOINT')
 TELEGRAM_TOKEN_AKAFER = os.getenv('TELEGRAM_TOKEN_AKAFER')
 TELEGRAM_TOKEN_ANTRASHA = os.getenv('TELEGRAM_TOKEN_ANTRASHA')
-TELEGRAM_TOKEN = TELEGRAM_TOKEN_AKAFER
+TELEGRAM_TOKEN = TELEGRAM_TOKEN_ANTRASHA
 TELEGRAM_CHAT_ID_MY = os.getenv('TELEGRAM_CHAT_ID_MY')
 TELEGRAM_CHAT_ID_ALEX = os.getenv('TELEGRAM_CHAT_ID_ALEX')
+SMS_TEXT = os.getenv('SMS_TEXT')
 DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')
 DEVINO_SOURCE_ADDRESS = os.getenv('DEVINO_SOURCE_ADDRESS')
-SMS_TEXT = os.getenv('SMS_TEXT')
+MTS_LOGIN = os.getenv('MTS_LOGIN')
+MTS_PASSWORD = os.getenv('MTS_PASSWORD')
+MTS_NAME = os.getenv('MTS_NAME')
 
-TURN = 'ON'
+TURN_SENDING_SMS = True
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
-LIST_OF_CHAT_ID = [TELEGRAM_CHAT_ID_MY]
+LIST_OF_CHAT_ID = [TELEGRAM_CHAT_ID_MY, TELEGRAM_CHAT_ID_ALEX]
 DAYS_TO_RUN = [1, 4]
 ERROR_KEY = (
     'Не обнаружен один из ключей'
@@ -44,6 +51,9 @@ ERROR_KEY = (
     'DEVINO_PASSWORD'
     'DEVINO_SOURCE_ADDRESS'
     'SMS_TEXT'
+    'MTS_LOGIN'
+    'MTS_PASSWORD'
+    'MTS_NAME'
 )
 
 
@@ -126,7 +136,7 @@ def parse_info(row):
 
 def check_tokens():
     """Проверяет наличие токенов."""
-    flag = all([
+    return all([
         TOKEN_ADMIN is not None,
         TELEGRAM_TOKEN_AKAFER is not None,
         TELEGRAM_TOKEN_ANTRASHA is not None,
@@ -137,8 +147,10 @@ def check_tokens():
         DEVINO_PASSWORD is not None,
         DEVINO_SOURCE_ADDRESS is not None,
         SMS_TEXT is not None,
+        MTS_LOGIN is not None,
+        MTS_PASSWORD is not None,
+        MTS_NAME is not None,
     ])
-    return flag
 
 
 def sort_by_date(non_sort_list):
@@ -147,68 +159,6 @@ def sort_by_date(non_sort_list):
         non_sort_list,
         key=lambda x: x['lastDemandDate']
     )
-
-
-def sms_send(final_user_list):
-    """Отправляет смс клиентам из списка."""
-    URL = (
-        f'https://integrationapi.net/rest/v2/User/Balance?'
-        f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
-    )
-    start_balance = requests.get(URL).json()
-    for user in final_user_list:
-        phone = user['phone']
-        if phone != 'НЕ УКАЗАН':
-            URL = (
-                f'https://integrationapi.net/'
-                f'rest/v2/Sms/Send?Login={DEVINO_LOGIN}'
-                f'&Password={DEVINO_PASSWORD}'
-                f'&DestinationAddress={phone}'
-                f'&SourceAddress={DEVINO_SOURCE_ADDRESS}'
-                f'&Data={SMS_TEXT}'
-            )
-            response = requests.post(URL).json()
-            user['sms_id'] = response
-    return final_user_list, start_balance
-
-
-def sms_report(final_user_list, start_balance):
-    """Фоирмирует отчет об отправленных смс."""
-    time.sleep(120)
-    costs = 0
-    unsuccess_sms = 0
-    for user in final_user_list:
-        phone = user['phone']
-        if phone != 'НЕ УКАЗАН':
-            sms_id = user['sms_id'][-1]
-            URL = (
-                f'https://integrationapi.net/rest/v2/'
-                f'Sms/State?Login={DEVINO_LOGIN}'
-                f'&Password={DEVINO_PASSWORD}'
-                f'&messageID={sms_id}'
-            )
-            response = requests.post(URL).json()
-            if response['StateDescription'] == "Доставлено":
-                if response["Price"]:
-                    costs += float(response["Price"])
-                user['status'] = 'ДОСТАВЛЕНО'
-            else:
-                unsuccess_sms += 1
-                user['status'] = 'НЕ ДОСТАВЛЕНО'
-        else:
-            unsuccess_sms += 1
-            user['status'] = 'НЕ ДОСТАВЛЕНО'
-    URL = (
-        f'https://integrationapi.net/rest/v2/User/Balance?'
-        f'Login={DEVINO_LOGIN}&Password={DEVINO_PASSWORD}'
-    )
-    final_balance = requests.get(URL).json()
-    return {
-        'Clients': len(final_user_list),
-        'Unsuccess': unsuccess_sms,
-        'Costs': int(start_balance) - int(final_balance),
-        'Balance': final_balance
-    }
 
 
 def get_period(days, day):
@@ -250,12 +200,19 @@ def main():
         logging.info('Начинаю сортировку по дате')
         final_user_list = sort_by_date(final_user_list)
         logging.info('Сортировка завершена')
-        if TURN == 'ON':
+        if TURN_SENDING_SMS:
+            client = None
+            if SMS_CLIENT == 'mts':
+                client = ClassMtsAPI()
+            elif SMS_CLIENT == 'devino':
+                client = ClassDevinoAPI()
+            if client is None:
+                raise ValueError('Не верно указан клиент')
             logging.info('Начинаю рассылку смс')
-            final_user_list, start_balance = sms_send(final_user_list)
+            final_user_list, start_balance = client.sms_send(final_user_list)
             logging.info('Рассылка закончена')
             logging.info('Формирование отчета по смс')
-            report = sms_report(final_user_list, start_balance)
+            report = client.sms_report(final_user_list, start_balance)
             send_message(bot, report)
             logging.info('Отчет сформирован')
         logging.info('Начинаю запись в файл')
@@ -293,6 +250,7 @@ if __name__ == '__main__':
         send_message(bot, 'Бот не запустился. Ошибка')
         raise NotTokenException(ERROR_KEY)
     send_message(bot, f'Бот начинает дежурство.\nДни рассылок: {DAYS_TO_RUN}')
+    main()
     schedule.every().day.at("14:30").do(main)
     while True:
         schedule.run_pending()
