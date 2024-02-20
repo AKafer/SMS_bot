@@ -217,15 +217,15 @@ def main():
             logging.info('Отчет сформирован')
         logging.info('Начинаю запись в файл')
         with open(
-            f'RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
+            f'/tmp/RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
             "w", encoding='utf-8'
         ) as file:
-            file_to_send = file
             for line in final_user_list:
                 file.write(str(line) + '\n')
         logging.info('Запись в файл завершена')
-        send_file(bot, file_to_send.name)
-        file_remove(file_to_send.name)
+        file.close()
+        send_file(bot, file.name)
+        file_remove(file.name)
     except Exception as error:
         message = f'Сбой в работе программы: {error}'
         send_message(bot, f'Сбой в работе программы: {error}')
