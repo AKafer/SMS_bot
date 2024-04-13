@@ -1,72 +1,80 @@
 # SMS_bot
 
-# Приложение, которое собирает информацию о продажах за определнный период и направляет смс покупателям пройти опрос в телеграме о качестве покупки
+# An application that collects information about sales for a certain period and sends SMS to customers to complete a survey in Telegram about the quality of their purchase
 
-## Описание
+## Description
 
-### Посредством requests запроса направляется запрос к эндпойнту API приложения "Мой скад", содержащего информацию о клиентах и продажах. Периодичность запроса и рассылки можно определить через специальную константу - список, содержащий порядковые номера дней недели.
+### Using the requests library, the application sends a request to the API endpoint of the "My Scud" application, which contains information about customers and sales. The frequency of the request and mailing can be determined through a special constant - a list containing the serial numbers of the days of the week.
 
-### Приложение проверяет ответ от эндпойнта, формат ответа (json), содеражние необходий информации.
+### The application checks the response from the endpoint, the response format (json), and the content of the necessary information.
 
-### В случае если ответ не соответствует требованиям направляется соответствующее сообщение в телеграм.
+### If the response does not meet the requirements, a corresponding message is sent via telegram.
 
-### В случае если ответ валидный формируется список рассылки смс
+### If the response is valid, an SMS mailing list is forming
 
-### Рассылка осуществляется с помощью API мобильного оператора, по результатам рассылки формируется интегральный отчет (количество клиентов за период, успешно отправленных смс, стоимость отправки и текущий баланс счета), а также файл, содержащий информацию о каждом клиенте. Указанные отчеты направляются в телеграм владельцу магазина.
+### The mailing is carried out using the mobile operator's API (two operators are available); based on the results of the mailing, an integral report is generated (the number of clients for the period, successfully sent SMS, the cost of sending and the current account balance), as well as a file containing information about each client. These reports are sent via telegram to the store owner.
 
-### Реализовано логирование ошибок приложения.
+### Application error logging has been implemented.
 
-### С помощью пакета dotenv ключи к эндпойнту и телеграм-чату расположены в вируальном окружении и недоступны в коде программы.
+## How to run project locally
 
-## Как установить проект
-
-### Клонировать репозиторий и перейти в него в командной строке:
+### Clone the repository and go to it on the command line:
 
 ```
 git clone https://github.com/AKafer/my_store_sales.git
 cd my_store_sales
 ```
 
-### Создать и активировать виртуальное окружение:
+### Create and activate a virtual environment:
 
 ```
 python -m venv venv
 source venv/Scripts/activate
 ```
 
-### Установить зависимости из файла requirements.txt:
+### Install dependencies from the requirements.txt file::
 
 ```
 pip install -r requirements.txt
 ```
 
-### Перейти в папку /my_store/ и создать файл .env со следующим содержимым:
+### Go to the /my_store/ folder and create .env file with the following contents:
 
 ```
-TOKEN_ADMIN ****** # токен для API сайта "Мой склад"
-TELEGRAM_TOKEN_1 ****** # токен телеграм 1-го бота
-TELEGRAM_TOKEN_2 ****** # токен телеграм 2-го бота
-...
-TELEGRAM_CHAT_ID_1 ****** # чат ID владельца
-TELEGRAM_CHAT_ID_2 ****** # чат ID владельца
-...
-ENDPOINT https://online.moysklad.ru/api/***** # эндпойнт приложения "Мой склад"
-DEVINO_LOGIN ****** # логин в лк мобильного оператора
-DEVINO_PASSWORD ****** # пароль в лк мобильного оператора
-DEVINO_SOURCE_ADDRESS ****** # имя отправителя в sms
-SMS_TEXT ****** # текст смс
+TOKEN_ADMIN='************'  # token for the my_scud application
+TELEGRAM_TOKEN_AKAFER='************' # first telegram bot token
+TELEGRAM_TOKEN_ANTRASHA='************' # second telegram bot token (must be any value if you don't use it)
+TELEGRAM_CHAT_ID_MY='************' # telegram chat id
+TELEGRAM_CHAT_ID_ALEX='************' # telegram chat id (must be any value if you don't use it)
+ENDPOINT='https://api.moysklad.ru/api/remap/1.2/report/counterparty'
+DEVINO_LOGIN='************' # first mobile operator login
+DEVINO_PASSWORD='************' # first mobile operator password
+DEVINO_SOURCE_ADDRESS='************' # first mobile operator source address
+MTS_LOGIN='************' # second mobile operator login
+MTS_PASSWORD='************' # second mobile operator password
+MTS_NAME='************' # second mobile operator name
+SMS_TEXT='************' # text of the SMS message
 ```
 
-### Запустить проект:
+### Run project:
 
 ```
 python sms_bot.py
 ```
 
-### Проект развернут в Docker контейнере на Яндекс.Облако
+## Run project in Docker:
 
-## Стек технологий
+### Copy docker-compose.yml file to your folder:
 
-### Python 3, requests, dotenv, telegram, logging, Docker
+### Create .env file with the contents as described above
 
-## Автор проекта - Сергей Сторожук
+### Run the following command:
+
+```
+docker-compose up -d
+
+```
+
+## Stack: Python 3, requests, dotenv, telegram, logging, Docker
+
+## Author: Sergey Storozhuk
