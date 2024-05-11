@@ -37,5 +37,14 @@ pipeline {
                 '''
             }
         }
+        stage("copy docker_compose file") {
+            steps {
+                echo " ============== copy docker-compose file =================="
+                dir ('./ci') {
+                    sh 'scp docker-compose.yaml root@ub1:/root/app/sms_bot/docker-compose.yaml'
+
+                }
+            }
+        }
     }
 }
