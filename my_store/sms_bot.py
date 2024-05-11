@@ -10,9 +10,9 @@ import requests
 import schedule
 import telegram
 from dotenv import load_dotenv
-from exceptions import NotStatusOkException, NotTokenException
-from devino_integration import ClassDevinoAPI
-from mts_integration import ClassMtsAPI
+from my_store.exceptions import NotStatusOkException, NotTokenException
+from my_store.devino_integration import ClassDevinoAPI
+from my_store.mts_integration import ClassMtsAPI
 
 load_dotenv()
 utc = pytz.UTC
@@ -68,9 +68,14 @@ def send_message(bot, message):
 def send_file(bot, file):
     """Отправляет файл в Телеграм."""
     logging.info('Отправляю файл в Телеграм')
-    with open(file, 'rb') as f:
-        for chat_id in LIST_OF_CHAT_ID:
-            bot.send_document(chat_id, f)
+    try:
+        with open(file, 'rb') as f:
+            for chat_id in LIST_OF_CHAT_ID:
+                bot.send_document(chat_id, f)
+    except Exception as e:
+        logging.error(f'Проблема с отправкой файла: {e}')
+    finally:
+        file_remove(file)
     logging.info('Файл отправлен')
 
 
@@ -172,8 +177,11 @@ def get_period(days, day):
 
 def file_remove(file):
     """Удаляет файл с диска после отправки"""
+
     try:
+        logging.info(f'Удаляю файл {file}')
         os.remove(file)
+        logging.info(f'Удалил файл {file}')
     except Exception as e:
         logging.error(f'Какая-то проблема с удалением файла: {e}')
 
@@ -223,9 +231,8 @@ def main():
             for line in final_user_list:
                 file.write(str(line) + '\n')
         logging.info('Запись в файл завершена')
-        file.close()
         send_file(bot, file.name)
-        file_remove(file.name)
+
     except Exception as error:
         message = f'Сбой в работе программы: {error}'
         send_message(bot, f'Сбой в работе программы: {error}')

@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 LABEL authors="s-storozhuk"
 
-WORKDIR /app
+RUN mkdir /app
 
 RUN apt-get update && apt-get upgrade -y && \
   apt-get -y install \
@@ -16,8 +16,13 @@ RUN apt-get update && apt-get upgrade -y && \
     libssl-dev \
   && apt-get clean
 
-COPY /my_store /app
+COPY /my_store /app/my_store
 
-COPY requirements.txt /app
+COPY ./requirements.txt /app/
 
-RUN pip install -r requirements.txt
+ENV PYTHONPATH "${PYTHONPATH}:/app"
+ENV PYTHONUNBUFFERED=TRUE
+
+RUN cd /app && pip install -r requirements.txt
+
+WORKDIR /app

@@ -33,5 +33,5 @@ def test_mts(final_user_list):
     print(final_user_list)
 
 
-# test_devino(final_user_list)
+test_devino(final_user_list)
 test_mts(final_user_list)
