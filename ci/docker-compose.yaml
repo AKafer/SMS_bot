@@ -5,7 +5,9 @@ services:
     container_name: sms_bot
     image: akafer/sms_bot
     restart: on-failure
-    command: ["python3", "my_store/sms_bot.py"]
+    command: >
+      bash -c ". venv/bin/activate
+      && python3 my_store/sms_bot.py"
     volumes:
       - ./reports:/tmp
     env_file:

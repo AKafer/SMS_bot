@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM python:3.11.4-bullseye
 LABEL authors="s-storozhuk"
 
 RUN mkdir /app
@@ -23,6 +23,9 @@ COPY ./requirements.txt /app/
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 ENV PYTHONUNBUFFERED=TRUE
 
-RUN cd /app && pip install -r requirements.txt
+RUN cd /app && \
+    python3 -m venv venv && \
+    . venv/bin/activate && \
+    pip install -r requirements.txt
 
 WORKDIR /app
