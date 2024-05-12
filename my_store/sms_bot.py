@@ -59,10 +59,10 @@ ERROR_KEY = (
 
 def send_message(bot, message):
     """Отправляет сообщение в Телеграм."""
-    logging.info('Отправляю сообщения в Телеграм')
+    logging.info('Отправляю сообщение в Телеграм')
     for chat_id in LIST_OF_CHAT_ID:
         bot.send_message(chat_id, message)
-    logging.info('Отправлено сообщения в Телеграм')
+    logging.info('Отправлено сообщение в Телеграм')
 
 
 def send_file(bot, file):
