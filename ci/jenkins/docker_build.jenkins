@@ -50,7 +50,12 @@ pipeline {
         stage("renew server") {
             steps {
                 echo " ============== go to server =================="
-                sh ' ssh root@ub1 "cd /root/app/sms_bot && docker-compose down && docker rmi akafer/sms_bot && docker-compose up -d"'
+                sh '''
+                    ssh root@ub1 "cd /root/app/sms_bot
+                    docker-compose down
+                    docker rmi akafer/sms_bot
+                    docker-compose up -d
+                '''
             }
         }
     }
