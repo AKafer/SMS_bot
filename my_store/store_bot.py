@@ -71,9 +71,12 @@ def get_api_answer(start_date):
 
 def check_if_today_is_workday(number_of_curren_day, prev_succeed, cur_attempt):
     if number_of_curren_day not in conf.DAYS_TO_RUN:
-        logger.info(f'Сегодня выходной. Рассылки не будет.{cur_attempt}')
+        logger.info(f'Сегодня выходной. СтореБот отдыхает.{cur_attempt}')
         if not prev_succeed:
-            tg_client.send_message(f'Сегодня выходной. Рассылки не будет.{cur_attempt}')
+            tg_client.send_message(
+                f'Сегодня выходной. СтореБот отдыхает.{cur_attempt}',
+                dev=True
+            )
             set_succeed_value(True)
         return False
     return True
@@ -158,7 +161,9 @@ def get_messages_list(msg_list):
     for msg in msg_list:
         if not Message.select().where(
             (Message.client == msg['phone']) &
-            (Message.created_at.strftime("%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d"))
+            (Message.created_at.year == datetime.now().year) &
+            (Message.created_at.month == datetime.now().month) &
+            (Message.created_at.day == datetime.now().day)
         ):
             messages_list.append(msg)
     return messages_list
@@ -169,7 +174,8 @@ def insert_to_db(user_list):
     with db.atomic():
         for user in new_user_list:
             Client.create(name=user['name'], phone=user['phone'])
-    new_message_list = []
+    logger.info(f'Добавлено {len(new_user_list)} новых пользователей')
+    new_message_list = get_messages_list(user_list)
     with db.atomic():
         for msg in new_message_list:
             Message.create(
@@ -177,9 +183,11 @@ def insert_to_db(user_list):
                 created_at=datetime.now(),
                 last_demand_date=msg['lastDemandDate'],
                 status='NEW',
+                error_reason=None,
                 sms_id=None,
                 tried_times=0
             )
+    logger.info(f'Добавлено {len(new_message_list)} новых сообщений')
 
 
 def get_user_list(rows):
@@ -203,7 +211,8 @@ def main():
         if check_if_today_is_workday(number_of_curren_day, prev_succeed, cur_attempt):
             tg_client.send_message(
                 f"Время работать: {datetime.now(pytz.timezone('Europe/Moscow'))}."
-                f" Попытка {cur_attempt}"
+                f" Попытка {cur_attempt}",
+                dev=True
             )
             curday = datetime.isoweekday(datetime.today())
             period_to_sms = get_period(conf.DAYS_TO_RUN, curday)
@@ -221,7 +230,7 @@ def main():
             set_succeed_value(True)
     except Exception as exc:
         message = f'Сбой в работе программы: {exc}'
-        tg_client.send_message(f'Сбой в работе программы: {exc}')
+        tg_client.send_message(message, dev=True)
         logger.error(message)
         set_succeed_value(False)
     finally:
@@ -234,15 +243,18 @@ if __name__ == '__main__':
         logger.info('Токены впорядке')
     else:
         logger.critical(conf.ERROR_KEY)
-        tg_client.send_message('Бот не запустился. Ошибка c токенами.')
+        tg_client.send_message('СторeБот не запустился. Ошибка c токенами.', dev=True)
         raise NotTokenException(conf.ERROR_KEY)
-    tg_client.send_message(f'Бот начинает дежурство.\nДни рассылок: {conf.DAYS_TO_RUN}')
+    tg_client.send_message(
+        f'Бот начинает дежурство.\nДни рассылок: {conf.DAYS_TO_RUN}',
+        dev=True
+    )
     main()
-    # schedule.every().day.at(conf.TIME_TO_RUN_1).do(main)
-    # schedule.every().day.at(conf.TIME_TO_RUN_2).do(main)
-    # schedule.every().day.at(conf.TIME_TO_RUN_3).do(main)
-    # while True:
-    #     schedule.run_pending()
-    #     time.sleep(1)
+    schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_1).do(main)
+    schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_2).do(main)
+    schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_3).do(main)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 

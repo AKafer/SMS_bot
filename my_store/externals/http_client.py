@@ -5,6 +5,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from my_store import conf
+from my_store.exceptions import HTTPClientError
 
 logging_config.dictConfig(conf.LOGGING)
 logger = logging.getLogger("sms_bot")
@@ -40,7 +41,7 @@ class HTTPClient:
                 exc_info=e,
                 extra={"payload": data or {}},
             )
-            raise e
+            raise HTTPClientError(f"Request error occurred: {e}")
         logger.debug(
             "Received [%s] response from %s",
             response.status_code,

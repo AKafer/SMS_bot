@@ -36,6 +36,7 @@ class Message(Model):
     last_demand_date = CharField(null=True)
     status = CharField(null=True)
     sms_id = CharField(null=True)
+    error_reason = CharField(null=True)
     tried_times = IntegerField(default=0)
 
     class Meta:
