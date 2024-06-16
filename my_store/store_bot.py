@@ -201,6 +201,15 @@ def get_user_list(rows):
     return final_user_list
 
 
+def get_today_night():
+    return datetime(
+        datetime.today().year,
+        datetime.today().month,
+        datetime.today().day,
+        0, 0, 0
+    )
+
+
 def main():
     db.connect()
     number_of_curren_day = datetime.isoweekday(datetime.today())
@@ -216,7 +225,8 @@ def main():
             )
             curday = datetime.isoweekday(datetime.today())
             period_to_sms = get_period(conf.DAYS_TO_RUN, curday)
-            start_date = datetime.today() - timedelta(days=period_to_sms)
+            today_night = get_today_night()
+            start_date = today_night - timedelta(days=period_to_sms)
             response = get_response_api()
             if response is None:
                 logger.info('Нет кэша')

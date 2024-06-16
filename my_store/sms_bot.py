@@ -2,24 +2,18 @@ import logging
 from logging import config as logging_config
 import os
 import time
-from datetime import datetime, timedelta
 from typing import Optional
 
-import peewee
-import pytz
 import requests
 import schedule
-import telegram
 from requests.auth import HTTPBasicAuth
 
 from my_store import conf
-from my_store.conf import cache
-from my_store.database import Client, db, Message
+from my_store.database import db, Message
 from my_store.exceptions import NotTokenException, HTTPClientError
 from my_store.externals.http_client import HTTPClient
 
 from my_store.externals.telegram_client import tg_client
-from my_store.mts_integration import ClassMtsAPI
 from my_store.services import check_tokens
 
 http_client = HTTPClient()
