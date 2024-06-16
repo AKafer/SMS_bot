@@ -26,13 +26,13 @@ class HTTPClient:
         session.mount("http://", self.adapter)
         return session
 
-    def make_request(self, method, url, headers, data, auth=None):
+    def make_request(self, method, url, data, headers, auth=None):
         logger.debug(
             "Requesting [%s] %s", method.upper(), url, extra={"payload": data or {}}
         )
         try:
             session = self.get_session()
-            response = session.request(method, url, headers=headers, data=data, auth=auth)
+            response = session.request(method, url, json=data, headers=headers, auth=auth)
         except Exception as e:
             logger.error(
                 "Request error occurred while trying to request [%s] %s",
@@ -86,7 +86,7 @@ class HTTPClient:
                 f"{response.status_code} {side} Error: {reason} for url: {response.url}"
             )
             logger.error(error_message)
-            raise requests.exceptions.RequestException(error_message)
+            raise HTTPClientError(f"Request error occurred: {error_message}")
 
         if not response.text:
             return None
