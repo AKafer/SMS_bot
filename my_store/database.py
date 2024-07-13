@@ -43,8 +43,6 @@ class Message(Model):
         database = db
 
 
-
-
 # db initialization
 db.connect()
 db.create_tables([Client, Message])

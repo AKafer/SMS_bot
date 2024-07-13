@@ -28,12 +28,12 @@ TURN_SENDING_SMS = True
 HEADERS = {'Authorization': f'Bearer {TOKEN_ADMIN}'}
 LIST_OF_CHAT_ID_PUBLIC = [TELEGRAM_CHAT_ID_MY, TELEGRAM_CHAT_ID_ALEX]
 LIST_OF_CHAT_ID_DEV = [TELEGRAM_CHAT_ID_MY]
-DAYS_TO_RUN = [6, 7]
-TIME_TO_RUN_STORE_BOT_1 = '12:33'
-TIME_TO_RUN_STORE_BOT_2 = '12:34'
-TIME_TO_RUN_STORE_BOT_3 = '12:35'
-TIME_TO_RUN_SMS_BOT = '12:36'
-MAX_TRIED_TIMES = 10  # times for try end message
+DAYS_TO_RUN = [1, 4]
+TIME_TO_RUN_STORE_BOT_1 = '11:00'
+TIME_TO_RUN_STORE_BOT_2 = '12:00'
+TIME_TO_RUN_STORE_BOT_3 = '14:00'
+TIME_TO_RUN_SMS_BOT = '15:00'
+MAX_TRIED_TIMES = 5  # times for try end message
 
 
 #  error messages
@@ -86,6 +86,6 @@ LOGGING = {
     },
 }
 
-
+#  cache
 cache = redis.Redis(host='redis', port=6379, decode_responses=True)
 ttl_cache = 6  # hours

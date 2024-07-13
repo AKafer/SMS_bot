@@ -259,12 +259,9 @@ if __name__ == '__main__':
         f'Бот начинает дежурство.\nДни рассылок: {conf.DAYS_TO_RUN}',
         dev=True
     )
-    main()
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_1).do(main)
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_2).do(main)
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_3).do(main)
     while True:
         schedule.run_pending()
         time.sleep(1)
-
-

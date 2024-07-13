@@ -1,18 +1,18 @@
 version: "2.2"
 
 services:
-#  store_bot:
-#    container_name: store_bot
-#    image: akafer/sms_bot
-#    restart: on-failure
-#    command: >
-#      bash -c ". venv/bin/activate
-#      && python3 my_store/store_bot.py"
-#    env_file:
-#      - .env
-#    depends_on:
-#      db:
-#        condition: service_healthy
+  store_bot:
+    container_name: store_bot
+    image: akafer/sms_bot
+    restart: on-failure
+    command: >
+      bash -c ". venv/bin/activate
+      && python3 my_store/store_bot.py"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
 
   sms_bot:
     container_name: sms_bot

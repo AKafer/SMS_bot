@@ -184,7 +184,6 @@ if __name__ == '__main__':
         raise NotTokenException(conf.ERROR_KEY)
     logger.info(f'Время работать')
     tg_client.send_message('СМС_Бот начинает работу.', dev=True)
-    main()
     schedule.every().day.at(conf.TIME_TO_RUN_SMS_BOT).do(main)
     while True:
         schedule.run_pending()
