@@ -5,6 +5,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from my_store import conf
+from my_store.exceptions import HTTPClientError
 
 logging_config.dictConfig(conf.LOGGING)
 logger = logging.getLogger("sms_bot")
@@ -25,13 +26,13 @@ class HTTPClient:
         session.mount("http://", self.adapter)
         return session
 
-    def make_request(self, method, url, headers, data, auth=None):
+    def make_request(self, method, url, data, headers, auth=None):
         logger.debug(
             "Requesting [%s] %s", method.upper(), url, extra={"payload": data or {}}
         )
         try:
             session = self.get_session()
-            response = session.request(method, url, headers=headers, data=data, auth=auth)
+            response = session.request(method, url, json=data, headers=headers, auth=auth)
         except Exception as e:
             logger.error(
                 "Request error occurred while trying to request [%s] %s",
@@ -40,7 +41,7 @@ class HTTPClient:
                 exc_info=e,
                 extra={"payload": data or {}},
             )
-            raise e
+            raise HTTPClientError(f"Request error occurred: {e}")
         logger.debug(
             "Received [%s] response from %s",
             response.status_code,
@@ -85,7 +86,7 @@ class HTTPClient:
                 f"{response.status_code} {side} Error: {reason} for url: {response.url}"
             )
             logger.error(error_message)
-            raise requests.exceptions.RequestException(error_message)
+            raise HTTPClientError(f"Request error occurred: {error_message}")
 
         if not response.text:
             return None

@@ -6,6 +6,8 @@ import os
 from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 
+from my_store.externals.http_client import HTTPClient
+
 load_dotenv()
 
 MTS_LOGIN = os.getenv('MTS_LOGIN')
@@ -16,6 +18,7 @@ SMS_TEXT = os.getenv('SMS_TEXT')
 
 class ClassMtsAPI:
     sleep_time = 60
+    http_client = HTTPClient()
 
     def correc_number(self, phone: str) -> str:
         """Приведение к формату 7-XXX-XXX-XXXX"""
@@ -54,10 +57,10 @@ class ClassMtsAPI:
                     ]
                 }]
         }
-        resp = requests.post(
-            url, json=body, auth=HTTPBasicAuth(login, password)
+        return self.http_client.post(
+            url, data=body, auth=HTTPBasicAuth(login, password)
         )
-        return resp
+
 
     def check_balance(self, login: str, password: str) -> int:
         url = 'https://omnichannel.mts.ru/http-api/v1/messages/balanceManagement/balance/full'
@@ -76,15 +79,16 @@ class ClassMtsAPI:
     ) -> (Optional[bool], Optional[str]):
         url = 'https://omnichannel.mts.ru/http-api/v1/messages/info'
         body = {"int_ids": [message_id]}
-        response = requests.post(url, json=body, auth=HTTPBasicAuth(login, password))
-        if response.status_code == 200:
-            event_code = response.json()["events_info"][0]["events_info"][0]["status"]
+        try:
+            response = self.http_client.post(url, data=body, auth=HTTPBasicAuth(login, password))
+            event_code = response["events_info"][0]["events_info"][0]["status"]
             if event_code == 200:
                 return True, None
             elif event_code == 201:
-                error_reason = response.json()["events_info"][0]["events_info"][0]['internal_errors']
+                error_reason = response["events_info"][0]["events_info"][0]['internal_errors']
                 return False, error_reason
-        return None, None
+        except Exception:
+            return None, None
 
     def sms_send(self, user_list: list) -> (list, int):
         """Отправляет смс клиентам из списка."""
@@ -95,11 +99,8 @@ class ClassMtsAPI:
             user['phone'] = phone
             if phone != 'НЕ УКАЗАН':
                 response = self.sent_message(MTS_LOGIN, MTS_PASSWORD, MTS_NAME, phone, SMS_TEXT)
-                if response.status_code == 200:
-                    message_id = response.json()['messages'][0]["internal_id"]
-                    user['sms_id'] = message_id
-                else:
-                    user['sms_id'] = '0'
+                message_id = response['messages'][0]["internal_id"]
+                user['sms_id'] = message_id
             final_user_list.append(user)
         return final_user_list, start_balance
 
