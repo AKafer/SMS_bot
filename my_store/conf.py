@@ -33,7 +33,7 @@ TIME_TO_RUN_STORE_BOT_1 = '10:00'
 TIME_TO_RUN_STORE_BOT_2 = '11:00'
 TIME_TO_RUN_STORE_BOT_3 = '13:00'
 TIME_TO_RUN_SMS_BOT = '14:00'
-MAX_TRIED_TIMES = 5  # times for try end message
+MAX_TRIED_TIMES = 20  # times for try end message
 
 
 #  error messages

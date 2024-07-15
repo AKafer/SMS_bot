@@ -151,3 +151,4 @@ posts/static/
 media/
 RESULT.txt
 commands.txt
+/my_store/.env

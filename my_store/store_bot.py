@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime, timedelta
 
@@ -44,12 +45,13 @@ def set_succeed_value(prev_succeed):
 
 def set_response_api(response):
     key_response_api = f'response_api_{datetime.today().strftime("%Y-%m-%d")}'
-    cache.set(key_response_api, str(response), ex=timedelta(hours=conf.ttl_cache))
+    cache.set(key_response_api, json.dumps(response), ex=timedelta(hours=conf.ttl_cache))
 
 
 def get_response_api():
     key_response_api = f'response_api_{datetime.today().strftime("%Y-%m-%d")}'
-    return cache.get(key_response_api)
+    raw_response = cache.get(key_response_api)
+    return json.loads(raw_response) if raw_response else None
 
 
 def round_sec(bad_date):
