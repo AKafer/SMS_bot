@@ -132,12 +132,8 @@ def send_messages(msg_list):
                 msg.error_reason = None
             if error_reason:
                 msg.error_reason = error_reason
-            msg.tried_times += 1
         except HTTPClientError as e:
-            msg.tried_times += + 1
             msg.error_reason = f'HTTPClientError: {e}'
-            if msg.tried_times > conf.MAX_TRIED_TIMES:
-                msg.status = 'FAILED'
         finally:
             name = Client.get(Client.phone == msg.client_id).name
             report.append(
@@ -145,6 +141,9 @@ def send_messages(msg_list):
                 f'ERROR: {msg.error_reason} | TRIED: {msg.tried_times} | STATUS: {msg.status}'
             )
             report.append('***' * 15)
+            msg.tried_times += 1
+            if msg.tried_times > conf.MAX_TRIED_TIMES:
+                msg.status = 'FAILED'
             msg.save()
     return report
 
