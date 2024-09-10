@@ -19,7 +19,7 @@ pipeline {
                 }
             }
         }
-        stage("create docker image") {
+        stage("update docker image") {
             steps {
                 echo " ============== start building image =================="
                 dir ('.') {
@@ -32,7 +32,6 @@ pipeline {
                 echo " ============== start pushing image =================="
                 sh '''
                 docker push akafer/sms_bot
-                docker rmi akafer/sms_bot
                 '''
             }
         }
@@ -48,7 +47,7 @@ pipeline {
         stage("renew server") {
             steps {
                 echo " ============== go to server =================="
-                sh 'ssh root@ub1 "cd /root/app/sms_bot && docker-compose down && docker rmi akafer/sms_bot && docker-compose up -d"'
+                sh 'ssh root@ub1 "cd /root/app/sms_bot && docker-compose down && docker pull akafer/sms_bot && docker-compose up -d"'
             }
         }
     }
