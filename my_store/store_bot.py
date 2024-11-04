@@ -2,14 +2,13 @@ import json
 import time
 from datetime import datetime, timedelta
 
-import peewee
 import pytz
 import schedule
 import logging
 from logging import config as logging_config
 
 from my_store import conf
-from my_store.conf import cache
+from my_store.conf import cache, REQUEST_REPORT_PERIOD_FROM_MY_SKLAD
 from my_store.database import db, Client, Message
 from my_store.exceptions import NotTokenException
 from my_store.externals.http_client import HTTPClient
@@ -82,15 +81,6 @@ def check_if_today_is_workday(number_of_curren_day, prev_succeed, cur_attempt):
             set_succeed_value(True)
         return False
     return True
-
-
-def get_period(days, day):
-    """Определяет промежуток в днях между днями рассылки"""
-    ind = days.index(day)
-    if ind == 0:
-        return day + 7 - days[-1]
-    else:
-        return day - days[ind - 1]
 
 
 def check_response(response):
@@ -225,10 +215,10 @@ def main():
                 f" Попытка {cur_attempt}",
                 dev=True
             )
-            curday = datetime.isoweekday(datetime.today())
-            period_to_sms = get_period(conf.DAYS_TO_RUN, curday)
             today_night = get_today_night()
-            start_date = today_night - timedelta(days=period_to_sms)
+            start_date = today_night - timedelta(
+                days=int(REQUEST_REPORT_PERIOD_FROM_MY_SKLAD)
+            )
             response = get_response_api()
             if response is None:
                 logger.info('Нет кэша')
