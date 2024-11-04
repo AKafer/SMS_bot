@@ -150,12 +150,12 @@ def get_list_of_new_users(user_list):
 
 def get_messages_list(msg_list):
     messages_list = []
+    start_date = datetime.now() - timedelta(days=int(REQUEST_REPORT_PERIOD_FROM_MY_SKLAD))
     for msg in msg_list:
         if not Message.select().where(
             (Message.client == msg['phone']) &
-            (Message.created_at.year == datetime.now().year) &
-            (Message.created_at.month == datetime.now().month) &
-            (Message.created_at.day == datetime.now().day)
+            (Message.created_at >= start_date) &
+            (Message.created_at <= datetime.now())
         ):
             messages_list.append(msg)
     return messages_list
