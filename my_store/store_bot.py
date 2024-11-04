@@ -155,8 +155,7 @@ def get_messages_list(msg_list):
         if not Message.select().where(
             (Message.client == msg['phone']) &
             (Message.created_at >= start_date) &
-            (Message.created_at <= datetime.now()) &
-            (Message.status == 'NEW')
+            (Message.created_at <= datetime.now())
         ):
             messages_list.append(msg)
     return messages_list
