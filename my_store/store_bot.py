@@ -11,7 +11,7 @@ from my_store import conf
 from my_store.conf import (
     cache,
     REQUEST_REPORT_PERIOD_FROM_MY_SKLAD,
-    PERIOD_TO_NOT_DISTURB,
+    PERIOD_TO_NOT_DISTURB, PENDING_PERIOD,
 )
 from my_store.database import db, Client, Message
 from my_store.exceptions import NotTokenException
@@ -273,4 +273,4 @@ if __name__ == '__main__':
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_3).do(main)
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(PENDING_PERIOD)

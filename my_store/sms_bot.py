@@ -10,6 +10,7 @@ import schedule
 from requests.auth import HTTPBasicAuth
 
 from my_store import conf
+from my_store.conf import PENDING_PERIOD, SLEEP_SMS_SEND_PERIOD
 from my_store.database import db, Message, Client
 from my_store.exceptions import NotTokenException, HTTPClientError
 from my_store.externals.http_client import HTTPClient
@@ -112,6 +113,7 @@ def send_messages(msg_list):
             report.append('***' * 15)
         finally:
             msg.save()
+            time.sleep(SLEEP_SMS_SEND_PERIOD)
 
     for i in range(30):
         time.sleep(1)
@@ -186,4 +188,4 @@ if __name__ == '__main__':
     schedule.every().day.at(conf.TIME_TO_RUN_SMS_BOT).do(main)
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(PENDING_PERIOD)

@@ -37,6 +37,8 @@ TIME_TO_RUN_SMS_BOT = '15:00'
 MAX_TRIED_TIMES = 5  # times for try end message
 REQUEST_REPORT_PERIOD_FROM_MY_SKLAD = 10  # days
 PERIOD_TO_NOT_DISTURB = 30  # days
+PENDING_PERIOD = 1  # seconds
+SLEEP_SMS_SEND_PERIOD = 1  # seconds
 
 
 #  error messages
