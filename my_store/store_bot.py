@@ -11,7 +11,8 @@ from my_store import conf
 from my_store.conf import (
     cache,
     REQUEST_REPORT_PERIOD_FROM_MY_SKLAD,
-    PERIOD_TO_NOT_DISTURB, PENDING_PERIOD,
+    PERIOD_TO_NOT_DISTURB,
+    PENDING_PERIOD,
 )
 from my_store.database import db, Client, Message
 from my_store.exceptions import NotTokenException

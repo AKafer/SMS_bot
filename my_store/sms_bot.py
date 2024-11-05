@@ -22,7 +22,7 @@ http_client = HTTPClient()
 
 
 logging_config.dictConfig(conf.LOGGING)
-logger = logging.getLogger("sms_bot")
+logger = logging.getLogger('sms_bot')
 
 
 def file_remove(file):
@@ -36,52 +36,49 @@ def file_remove(file):
 
 
 def sent_message(
-        login: str,
-        password: str,
-        naming: str,
-        to: str,
-        text_message: str
+    login: str, password: str, naming: str, to: str, text_message: str
 ) -> requests.Response:
     url = 'https://omnichannel.mts.ru/http-api/v1/messages'
     body = {
-        "messages": [
+        'messages': [
             {
-                "content": {
-                    "short_text": text_message
-                },
-                "from": {
-                    "sms_address": naming
-                },
-                "to": [
-                    {
-                        "msisdn": to
-                    }
-                ]
-            }]
+                'content': {'short_text': text_message},
+                'from': {'sms_address': naming},
+                'to': [{'msisdn': to}],
+            }
+        ]
     }
     return http_client.post(
         url, data=body, auth=HTTPBasicAuth(login, password)
     )
 
 
-def check_message(login: str, password: str, message_id: str) -> (Optional[bool], Optional[str]):
+def check_message(
+    login: str, password: str, message_id: str
+) -> (Optional[bool], Optional[str]):
     url = 'https://omnichannel.mts.ru/http-api/v1/messages/info'
-    body = {"int_ids": [message_id]}
-    response = http_client.post(url, data=body, auth=HTTPBasicAuth(login, password))
-    event_code = response["events_info"][0]["events_info"][0]["status"]
+    body = {'int_ids': [message_id]}
+    response = http_client.post(
+        url, data=body, auth=HTTPBasicAuth(login, password)
+    )
+    event_code = response['events_info'][0]['events_info'][0]['status']
     if event_code == 200:
         return True, None
     elif event_code == 201:
-        error_reason = response["events_info"][0]["events_info"][0]['internal_errors']
+        error_reason = response['events_info'][0]['events_info'][0][
+            'internal_errors'
+        ]
         return False, error_reason
 
 
 def get_msg_list():
     msg_list = Message.select().where(
-        (Message.status == 'NEW') &
-        (Message.tried_times <= conf.MAX_TRIED_TIMES)
+        (Message.status == 'NEW')
+        & (Message.tried_times <= conf.MAX_TRIED_TIMES)
     )
-    tg_client.send_message(f'Найдено {len(msg_list)} сообщений к рассылке', dev=True)
+    tg_client.send_message(
+        f'Найдено {len(msg_list)} сообщений к рассылке', dev=True
+    )
     logger.info(f'Найдено {len(msg_list)} сообщений к рассылке')
     return msg_list
 
@@ -95,7 +92,7 @@ def send_messages(msg_list):
                 conf.MTS_PASSWORD,
                 conf.MTS_NAME,
                 msg.client_id,
-                conf.SMS_TEXT
+                conf.SMS_TEXT,
             )
             sms_id = response['messages'][0]['internal_id']
             msg.sms_id = sms_id
@@ -125,9 +122,7 @@ def send_messages(msg_list):
             continue
         try:
             sms_status, error_reason = check_message(
-                conf.MTS_LOGIN,
-                conf.MTS_PASSWORD,
-                msg.sms_id
+                conf.MTS_LOGIN, conf.MTS_PASSWORD, msg.sms_id
             )
             if sms_status:
                 msg.status = 'SUCCESS'
@@ -152,8 +147,9 @@ def send_messages(msg_list):
 
 def send_report(report):
     with open(
-            f'/tmp/RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
-            "w", encoding='utf-8'
+        f'/tmp/RESULT-{datetime.today().strftime("%Y-%m-%d")}.txt',
+        'w',
+        encoding='utf-8',
     ) as file:
         for line in report:
             file.write(str(line) + '\n')
