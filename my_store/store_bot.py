@@ -8,7 +8,11 @@ import logging
 from logging import config as logging_config
 
 from my_store import conf
-from my_store.conf import cache, REQUEST_REPORT_PERIOD_FROM_MY_SKLAD
+from my_store.conf import (
+    cache,
+    REQUEST_REPORT_PERIOD_FROM_MY_SKLAD,
+    PERIOD_TO_NOT_DISTURB,
+)
 from my_store.database import db, Client, Message
 from my_store.exceptions import NotTokenException
 from my_store.externals.http_client import HTTPClient
@@ -16,7 +20,7 @@ from my_store.externals.telegram_client import tg_client
 from my_store.services import check_tokens
 
 logging_config.dictConfig(conf.LOGGING)
-logger = logging.getLogger("sms_bot")
+logger = logging.getLogger('sms_bot')
 
 http_client = HTTPClient()
 
@@ -27,24 +31,34 @@ def get_previos_attempt_params():
     key_prev_succeed = f'prev_succeed_{datetime.today().strftime("%Y-%m-%d")}'
     prev_attempt = cache.get(key_prev_attempt) or 0
     prev_succeed = cache.get(key_prev_succeed) == 'true'
-    logger.info(f'Cache: prev_attempt-{prev_attempt} - prev_succed-{prev_succeed}')
+    logger.info(
+        f'Cache: prev_attempt-{prev_attempt} - prev_succed-{prev_succeed}'
+    )
     return prev_attempt, prev_succeed
 
 
 def set_attempt_value(prev_attempt):
     key_prev_attempt = f'attempt_{datetime.today().strftime("%Y-%m-%d")}'
-    cache.set(key_prev_attempt, prev_attempt, ex=timedelta(hours=conf.ttl_cache))
+    cache.set(
+        key_prev_attempt, prev_attempt, ex=timedelta(hours=conf.ttl_cache)
+    )
 
 
 def set_succeed_value(prev_succeed):
     key_prev_succeed = f'prev_succeed_{datetime.today().strftime("%Y-%m-%d")}'
     prev_succeed = str(prev_succeed).lower()
-    cache.set(key_prev_succeed, prev_succeed, ex=timedelta(hours=conf.ttl_cache))
+    cache.set(
+        key_prev_succeed, prev_succeed, ex=timedelta(hours=conf.ttl_cache)
+    )
 
 
 def set_response_api(response):
     key_response_api = f'response_api_{datetime.today().strftime("%Y-%m-%d")}'
-    cache.set(key_response_api, json.dumps(response), ex=timedelta(hours=conf.ttl_cache))
+    cache.set(
+        key_response_api,
+        json.dumps(response),
+        ex=timedelta(hours=conf.ttl_cache),
+    )
 
 
 def get_response_api():
@@ -75,8 +89,7 @@ def check_if_today_is_workday(number_of_curren_day, prev_succeed, cur_attempt):
         logger.info(f'Сегодня выходной. СтореБот отдыхает.{cur_attempt}')
         if not prev_succeed:
             tg_client.send_message(
-                f'Сегодня выходной. СтореБот отдыхает.{cur_attempt}',
-                dev=True
+                f'Сегодня выходной. СтореБот отдыхает.{cur_attempt}', dev=True
             )
             set_succeed_value(True)
         return False
@@ -134,10 +147,7 @@ def parse_info(row):
 
 def sort_by_date(non_sort_list):
     """Сортирует список клиентов по дате последней покупки"""
-    return sorted(
-        non_sort_list,
-        key=lambda x: x['lastDemandDate']
-    )
+    return sorted(non_sort_list, key=lambda x: x['lastDemandDate'])
 
 
 def get_list_of_new_users(user_list):
@@ -150,13 +160,15 @@ def get_list_of_new_users(user_list):
 
 def get_messages_list(msg_list):
     messages_list = []
-    start_date = datetime.now() - timedelta(days=int(REQUEST_REPORT_PERIOD_FROM_MY_SKLAD))
+    start_date = datetime.now() - timedelta(days=PERIOD_TO_NOT_DISTURB)
     for msg in msg_list:
-        if not Message.select().where(
-            (Message.client == msg['phone']) &
-            (Message.created_at >= start_date) &
-            (Message.created_at <= datetime.now())
+        if Message.select().where(
+            (Message.client == msg['phone'])
+            & (Message.created_at >= start_date)
+            & (Message.created_at <= datetime.now())
         ):
+            continue
+        else:
             messages_list.append(msg)
     return messages_list
 
@@ -177,7 +189,7 @@ def insert_to_db(user_list):
                 status='NEW',
                 error_reason=None,
                 sms_id=None,
-                tried_times=0
+                tried_times=0,
             )
     logger.info(f'Добавлено {len(new_message_list)} новых сообщений')
 
@@ -198,7 +210,9 @@ def get_today_night():
         datetime.today().year,
         datetime.today().month,
         datetime.today().day,
-        0, 0, 0
+        0,
+        0,
+        0,
     )
 
 
@@ -209,11 +223,13 @@ def main():
     try:
         prev_attempt, prev_succeed = get_previos_attempt_params()
         cur_attempt = int(prev_attempt) + 1
-        if check_if_today_is_workday(number_of_curren_day, prev_succeed, cur_attempt):
+        if check_if_today_is_workday(
+            number_of_curren_day, prev_succeed, cur_attempt
+        ):
             tg_client.send_message(
                 f"Время работать: {datetime.now(pytz.timezone('Europe/Moscow'))}."
-                f" Попытка {cur_attempt}",
-                dev=True
+                f' Попытка {cur_attempt}',
+                dev=True,
             )
             today_night = get_today_night()
             start_date = today_night - timedelta(
@@ -245,11 +261,12 @@ if __name__ == '__main__':
         logger.info('Токены впорядке')
     else:
         logger.critical(conf.ERROR_KEY)
-        tg_client.send_message('СторeБот не запустился. Ошибка c токенами.', dev=True)
+        tg_client.send_message(
+            'СторeБот не запустился. Ошибка c токенами.', dev=True
+        )
         raise NotTokenException(conf.ERROR_KEY)
     tg_client.send_message(
-        f'Бот начинает дежурство.\nДни рассылок: {conf.DAYS_TO_RUN}',
-        dev=True
+        f'Бот начинает дежурство.\nДни рассылок: {conf.DAYS_TO_RUN}', dev=True
     )
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_1).do(main)
     schedule.every().day.at(conf.TIME_TO_RUN_STORE_BOT_2).do(main)
