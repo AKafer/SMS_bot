@@ -50,5 +50,11 @@ pipeline {
                 sh 'ssh root@ub1 "cd /root/app/sms_bot && docker-compose down && docker pull akafer/sms_bot && docker-compose up -d"'
             }
         }
+        stage("cleanup old docker images") {
+            steps {
+                echo " ============== cleanup old docker images =================="
+                sh '''ssh root@ub1 "docker image prune -a -f --filter 'until=72h'"'''
+            }
+        }
     }
 }
