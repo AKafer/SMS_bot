@@ -15,6 +15,8 @@ TELEGRAM_TOKEN_ANTRASHA = os.getenv('TELEGRAM_TOKEN_ANTRASHA')
 TELEGRAM_TOKEN = TELEGRAM_TOKEN_ANTRASHA
 TELEGRAM_CHAT_ID_MY = os.getenv('TELEGRAM_CHAT_ID_MY')
 TELEGRAM_CHAT_ID_ALEX = os.getenv('TELEGRAM_CHAT_ID_ALEX')
+# адрес Telegram Bot API, можно подменить на Cloudflare Worker, если api.telegram.org заблокирован
+TELEGRAM_API_URL = os.getenv('TELEGRAM_API_URL', 'https://api.telegram.org').rstrip('/')
 SMS_TEXT = os.getenv('SMS_TEXT')
 DEVINO_LOGIN = os.getenv('DEVINO_LOGIN')
 DEVINO_PASSWORD = os.getenv('DEVINO_PASSWORD')

@@ -12,7 +12,11 @@ logger = logging.getLogger("sms_bot")
 
 class TelegramClient:
 
-    bot = telegram.Bot(token=conf.TELEGRAM_TOKEN)
+    bot = telegram.Bot(
+        token=conf.TELEGRAM_TOKEN,
+        base_url=f'{conf.TELEGRAM_API_URL}/bot',
+        base_file_url=f'{conf.TELEGRAM_API_URL}/file/bot',
+    )
 
     def send_message(self, message, dev=False):
         """Отправляет сообщение в Телеграм."""
